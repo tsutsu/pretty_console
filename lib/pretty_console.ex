@@ -22,14 +22,14 @@ defmodule PrettyConsole do
   end
 
   defp load_configuration do
-    {:ok, format_module} = Application.get_env(:console, :formatter)
+    format_module = Application.get_env(:pretty_console, :formatter)
     fmt = fn({level, color_for_level}, msg, ts, md) ->
       format_module.format({level, color_for_level}, msg, ts, md)
     end
 
-    {:ok, level} = Application.get_env(:console, :level)
+    level = Application.get_env(:pretty_console, :level)
 
-    {:ok, colors} = Application.get_env(:console, :colors)
+    colors = Application.get_env(:pretty_console, :colors)
     colors = colors |> Enum.into(%{})
     colors = @default_colors |> Map.merge(colors)
 
