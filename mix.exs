@@ -10,13 +10,6 @@ defmodule PrettyConsole.Mixfile do
 
   # Configuration for the OTP application
   def application do [
-    applications: [:logger],
-    env: env
-  ] end
-
-  defp env do [
-    level: :debug,
-    formatter: PrettyConsole.Formatter,
-    colors: [],
+    applications: [:logger]
   ] end
 end
