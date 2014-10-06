@@ -24,7 +24,7 @@ defmodule PrettyConsole do
   defp load_configuration do
     env = Application.get_all_env :pretty_console
 
-    format_module = env |> Dict.get(:formatter, PrettyConsole.formatter)
+    format_module = env |> Dict.get(:formatter, PrettyConsole.Formatter)
     fmt = fn({level, color_for_level}, msg, ts, md) ->
       format_module.format({level, color_for_level}, msg, ts, md)
     end
