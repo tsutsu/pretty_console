@@ -10,6 +10,7 @@ defmodule PrettyConsole.Mixfile do
 
   # Configuration for the OTP application
   def application do [
-    applications: [:logger]
+    applications: [:logger],
+    mod: {PrettyConsole, []}
   ] end
 end

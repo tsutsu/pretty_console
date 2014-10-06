@@ -1,4 +1,4 @@
-defmodule PrettyConsole do
+defmodule PrettyConsole.Backend do
   @moduledoc false
 
 
@@ -24,10 +24,7 @@ defmodule PrettyConsole do
   defp load_configuration do
     env = Application.get_all_env :pretty_console
 
-    format_module = env |> Dict.get(:formatter, PrettyConsole.Formatter)
-    fmt = fn({level, color_for_level}, msg, ts, md) ->
-      format_module.format({level, color_for_level}, msg, ts, md)
-    end
+    formatter = env |> Dict.get(:formatter, PrettyConsole.Formatter)
 
     level = env |> Dict.get(:level, :debug)
 
@@ -35,7 +32,7 @@ defmodule PrettyConsole do
     colors = colors |> Enum.into(%{})
     colors = @default_colors |> Map.merge(colors)
 
-    %{formatter: fmt, level: level, colors: colors}
+    %{formatter: formatter, level: level, colors: colors}
   end
 
 
@@ -50,9 +47,9 @@ defmodule PrettyConsole do
     {:ok, state}
   end
 
-  defp log_event(level, msg, ts, md, %{formatter: fmt, colors: colors}) do
+  defp log_event(level, msg, ts, md, %{formatter: formatter, colors: colors}) do
     color_for_level = Map.fetch!(colors, level)
-    chardata = fmt.({level, color_for_level}, msg, ts, md)
+    chardata = formatter.format({level, color_for_level}, msg, ts, md)
     :io.put_chars(:user, chardata)
   end
 end

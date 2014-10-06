@@ -1,7 +1,6 @@
 defmodule PrettyConsole.Translator do
   def translate(_min_level, :info, :report, {:progress, report}), do: translate_report(report)
   def translate(_min_level, _level, kind, message) do
-    IO.puts(IO.ANSI.format([:yellow, inspect({kind, message}), :reset]))
     :none
   end
 
