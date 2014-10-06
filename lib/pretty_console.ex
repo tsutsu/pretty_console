@@ -27,7 +27,7 @@ defmodule PrettyConsole do
       format_module.format({level, color_for_level}, msg, ts, md)
     end
 
-    level = Keyword.get(console, :level)
+    {:ok, level} = Application.get_env(:console, :level)
 
     {:ok, colors} = Application.get_env(:console, :colors)
     colors = colors |> Enum.into(%{})
