@@ -12,7 +12,7 @@ defmodule PrettyConsole.Translator do
     ])]}
   end
 
-  defp translate_report([supervisor: {sup_pid, sup_name}, started: child_report]) do
+  defp translate_report([supervisor: {_sup_pid, sup_name}, started: child_report]) do
     case :application.get_application(child_report[:pid]) do
       :undefined -> :none
       {:ok, app_name} ->
@@ -26,7 +26,7 @@ defmodule PrettyConsole.Translator do
 
   defp translate_child_start_report(:logger, _, _, _, _), do: :skip
   defp translate_child_start_report(_, _, nil, _, _), do: :skip
-  defp translate_child_start_report(app_name, sup_name, child_name, child_type, {child_module, child_fn, child_args}) do
+  defp translate_child_start_report(app_name, _sup_name, child_name, child_type, {child_module, _child_fn, _child_args}) do
     child_name = to_string(child_name)
     child_module = to_string(child_module)
     child_type = to_string(child_type)

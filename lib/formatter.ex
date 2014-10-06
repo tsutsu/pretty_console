@@ -1,7 +1,5 @@
 defmodule PrettyConsole.Formatter do
-  def format({level, color}, msg, ts, metadata) do
-    pid = metadata |> Dict.fetch!(:pid)
-
+  def format({level, color}, msg, _ts, metadata) do
     {app_symbol, msg} = case msg do
       [["application", plain_app], str] ->
         {{:ok, plain_app}, str}
