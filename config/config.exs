@@ -1,10 +1,12 @@
 use Mix.Config
 
-config :elixir, :ansi_enabled, true
+config :elixir,
+  ansi_enabled: true
 
-config :logger, :level, :debug
-config :logger, :handle_otp_reports, true
-config :logger, :handle_sasl_reports, true
-config :logger, :utc_log, true
-config :logger, :translators, []
-config :logger, :backends, []
+config :logger,
+  level: :debug,
+  handle_otp_reports: true,
+  handle_sasl_reports: true,
+  utc_log: true,
+  translators: [],
+  backends: []
