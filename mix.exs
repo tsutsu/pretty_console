@@ -1,9 +1,11 @@
 defmodule PrettyConsole.Mixfile do
   use Mix.Project
 
+  @version File.read!("VERSION")
+
   def project do [
     app: :pretty_console,
-    version: "0.1.1",
+    version: @version,
     elixir: "~> 1.4.0",
     deps: []
   ] end
