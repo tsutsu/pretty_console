@@ -15,7 +15,7 @@ defmodule PrettyConsole.Backend do
   def init(_) do
     if user = Process.whereis(:user) do
       Process.group_leader(self(), user)
-      {:ok, load_configuration}
+      {:ok, load_configuration()}
     else
       {:error, :ignore}
     end
@@ -24,11 +24,11 @@ defmodule PrettyConsole.Backend do
   defp load_configuration do
     env = Application.get_all_env :pretty_console
 
-    formatter = env |> Dict.get(:formatter, PrettyConsole.Formatter)
+    formatter = env |> Keyword.get(:formatter, PrettyConsole.Formatter)
 
-    level = env |> Dict.get(:level, :debug)
+    level = env |> Keyword.get(:level, :debug)
 
-    colors = env |> Dict.get(:colors, [])
+    colors = env |> Keyword.get(:colors, [])
     colors = colors |> Enum.into(%{})
     colors = @default_colors |> Map.merge(colors)
 

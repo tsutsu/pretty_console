@@ -3,14 +3,14 @@ defmodule PrettyConsole.Mixfile do
 
   def project do [
     app: :pretty_console,
-    version: "0.1.0",
-    elixir: ">= 1.0.0",
+    version: "0.1.1",
+    elixir: "~> 1.4.0",
     deps: []
   ] end
 
   # Configuration for the OTP application
   def application do [
-    applications: [:logger],
-    mod: {PrettyConsole, []}
+    mod: {PrettyConsole, []},
+    extra_applications: [:logger]
   ] end
 end

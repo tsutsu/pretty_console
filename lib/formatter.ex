@@ -5,7 +5,7 @@ defmodule PrettyConsole.Formatter do
         {{:ok, plain_app}, str}
 
       str ->
-        app_for_pid = metadata |> Dict.fetch!(:pid) |> :application.get_application
+        app_for_pid = metadata |> Keyword.fetch!(:pid) |> :application.get_application
         {app_for_pid, str}
     end
 
