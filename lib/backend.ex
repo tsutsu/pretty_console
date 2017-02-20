@@ -22,11 +22,10 @@ defmodule PrettyConsole.Backend do
   end
 
   defp load_configuration do
-    env = Application.get_all_env :pretty_console
+    env = Application.get_env :logger, PrettyConsole
 
+    level = env |> Keyword.get(:level, Application.get_env(:logger, :level))
     formatter = env |> Keyword.get(:formatter, PrettyConsole.Formatter)
-
-    level = env |> Keyword.get(:level, :debug)
 
     colors = env |> Keyword.get(:colors, [])
     colors = colors |> Enum.into(%{})
