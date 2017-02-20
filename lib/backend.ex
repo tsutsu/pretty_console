@@ -34,6 +34,15 @@ defmodule PrettyConsole.Backend do
     %{formatter: formatter, level: level, colors: colors}
   end
 
+  def log(level, msg) do
+    default_config = %{
+      formatter: PrettyConsole.Formatter,
+      colors: @default_colors
+    }
+
+    log_event(level, msg, DateTime.utc_now, [pid: self()], default_config)
+  end
+
 
   def handle_event({_level, gl, _event}, state) when node(gl) != node() do
     {:ok, state}
