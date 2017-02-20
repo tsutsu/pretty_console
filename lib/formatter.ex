@@ -5,7 +5,11 @@ defmodule PrettyConsole.Formatter do
         {{:ok, plain_app}, str}
 
       str ->
-        app_for_pid = metadata |> Keyword.fetch!(:pid) |> :application.get_application
+        app_for_pid = case Keyword.fetch(metadata, :pid) do
+          {:ok, pid} -> :application.get_application(pid)
+          :error     -> :system
+        end
+
         {app_for_pid, str}
     end
 
@@ -16,6 +20,8 @@ defmodule PrettyConsole.Formatter do
 
     app_part = case app_symbol do
       {:ok, app} -> [color, "[", to_string(app), level_part, "] ", :reset]
+      :system    ->
+        [color, "runtime ", to_string(level), ": ", :reset]
       :undefined ->
         [color, "user ", to_string(level), ": ", :reset]
 
