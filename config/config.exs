@@ -8,5 +8,5 @@ config :logger,
   handle_otp_reports: true,
   handle_sasl_reports: true,
   utc_log: true,
-  translators: [],
-  backends: []
+  translators: [{PrettyConsole.Translator, :translate}, {Logger.Translator, :translate}],
+  backends: [PrettyConsole.Backend]
