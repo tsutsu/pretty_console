@@ -1,5 +1,6 @@
 defmodule PrettyConsole.Translator do
   def translate(_min_level, :info, :report, {:progress, report}), do: translate_report(report)
+  def translate(_min_level, :error, :report, {:supervisor_report, _}), do: :skip
   def translate(_min_level, _level, _kind, _message) do
     :none
   end
