@@ -162,7 +162,7 @@ defmodule PrettyConsole.Backend do
   defp format_event(level, msg, ts, md, state) do
     %{formatter: formatter, metadata: keys, colors: colors} = state
     color = color_for_event(level, colors, md)
-    :erlang.apply(formatter, :format, [{level, color}, msg, ts, take_metadata(md, keys)])
+    formatter.format({level, color}, msg, ts, take_metadata(md, keys))
   end
 
   defp take_metadata(metadata, :all), do: metadata
