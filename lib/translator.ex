@@ -7,7 +7,7 @@ defmodule PrettyConsole.Translator do
 
   defp translate_report([application: :logger, started_at: _node_name]), do: :skip
   defp translate_report([application: app_name, started_at: _node_name]) do
-    {:ok, [["application", to_string(app_name)], IO.ANSI.format([
+    {:ok, [["application ", to_string(app_name), " "], IO.ANSI.format([
       :green, "started", :reset
     ])]}
   end

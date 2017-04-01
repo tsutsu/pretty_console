@@ -1,16 +1,10 @@
 defmodule PrettyConsole.Formatter do
   def format({level, color}, msg, _ts, metadata) do
-    {app_symbol, msg} = case msg do
-      [["application", plain_app], str] ->
-        {{:ok, plain_app}, str}
-
-      str ->
-        app_for_pid = case Keyword.fetch(metadata, :pid) do
-          {:ok, pid} -> :application.get_application(pid)
-          :error     -> :system
-        end
-
-        {app_for_pid, str}
+    {msg, metadata} = case msg do
+      [["application ", app_name, " "], new_msg] ->
+        {new_msg, Keyword.put(metadata, :application, String.to_atom(app_name))}
+      msg ->
+        {msg, metadata}
     end
 
     level_part = case level do
@@ -18,13 +12,25 @@ defmodule PrettyConsole.Formatter do
       level_name -> [" ", to_string(level_name)]
     end
 
-    app_part = case app_symbol do
-      {:ok, app} -> [color, "[", to_string(app), level_part, "] ", :reset]
-      :system    ->
-        [color, "runtime ", to_string(level), ": ", :reset]
-      :undefined ->
-        [color, "user ", to_string(level), ": ", :reset]
+    app_name = case {metadata[:application], metadata[:pid]} do
+      {app, _} when is_atom(app) -> app
+      {_, pid} when is_pid(pid)  -> :application.get_application(pid)
+      _                          -> nil
+    end
 
+    app_desc = case app_name do
+      :kernel -> :system
+      :stdlib -> :system
+      nil     -> :user
+      v       -> {:app, v}
+    end
+
+    app_part = case app_desc do
+      {:app, app} -> [color, "[", to_string(app), level_part, "] ", :reset]
+      :system ->
+        [color, "runtime ", to_string(level), ": ", :reset]
+      :user ->
+        [color, "user ", to_string(level), ": ", :reset]
     end
 
     loc_part = if metadata[:module] do
