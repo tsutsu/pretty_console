@@ -93,12 +93,15 @@ defmodule PrettyConsole.Backend do
     device = Keyword.get(config, :device, :user)
     formatter = Keyword.get(config, :formatter, PrettyConsole.Formatter)
     colors = configure_colors(config)
-    metadata = Keyword.get(config, :metadata, [])
+    metadata = Keyword.get(config, :metadata, []) |> configure_metadata()
     max_buffer = Keyword.get(config, :max_buffer, 32)
 
-    %{state | formatter: formatter, metadata: Enum.reverse(metadata),
+    %{state | formatter: formatter, metadata: metadata,
               level: level, colors: colors, device: device, max_buffer: max_buffer}
   end
+
+  defp configure_metadata(:all), do: :all
+  defp configure_metadata(metadata), do: Enum.reverse(metadata)
 
   defp configure_merge(env, options) do
     Keyword.merge(env, options, fn
@@ -162,6 +165,7 @@ defmodule PrettyConsole.Backend do
     :erlang.apply(formatter, :format, [{level, color}, msg, ts, take_metadata(md, keys)])
   end
 
+  defp take_metadata(metadata, :all), do: metadata
   defp take_metadata(metadata, keys) do
     Enum.reduce keys, [], fn key, acc ->
       case Keyword.fetch(metadata, key) do
