@@ -21,16 +21,20 @@ defmodule PrettyConsole.Formatter do
     app_desc = case app_name do
       :kernel -> :system
       :stdlib -> :system
-      nil     -> :user
-      v       -> {:app, v}
+      nil -> {:user, get_user(metadata[:pid])}
+      v -> {:app, v}
     end
 
     app_part = case app_desc do
       {:app, app} -> [color, "[", to_string(app), level_part, "] ", :reset]
       :system ->
-        [color, "runtime ", to_string(level), ": ", :reset]
-      :user ->
-        [color, "user ", to_string(level), ": ", :reset]
+        [color, "runtime", level_part, ": ", :reset]
+      {:user, :local_console} ->
+        [:bright, "console", :reset, color, level_part, :reset, " | "]
+      {:user, {:remote, :unknown}} ->
+        [color, "remote user", color, level_part, ": ", :reset]
+      {:user, {:remote, username}} when is_binary(username) ->
+        [:italic, :blue, "~", username, :reset, color, level_part, ": ", :reset]
     end
 
     loc_part = if metadata[:module] do
@@ -48,5 +52,44 @@ defmodule PrettyConsole.Formatter do
 
     IO.ANSI.format_fragment([app_part, msg_first_ln, " ", :blue, loc_part, :reset, "\n", msg_detail_lns])
   end
-end
 
+  defp get_user(pid) do
+    case Process.info(pid, :group_leader) do
+      {:group_leader, pid_gl} ->
+        tty_gl = local_tty_group_leader()
+
+        if pid_gl == tty_gl do
+          :local_console
+        else
+          {:remote, get_remote_user(pid_gl)}
+        end
+
+      nil -> {:remote, :unknown}
+    end
+  end
+
+  defp local_tty_group_leader do
+    case Process.get(:local_tty_group_leader) do
+      :none -> nil
+      nil ->
+        new_value = read_local_tty_group_leader()
+        Process.put(:local_tty_group_leader, new_value)
+        new_value
+      v -> v
+    end
+  end
+
+  defp read_local_tty_group_leader do
+    case Process.whereis(:user_drv) do
+      nil -> :none
+      tty_pid when is_pid(tty_pid) ->
+        {:dictionary, d} = Process.info(tty_pid, :dictionary)
+        Keyword.fetch!(d, :current_group)
+    end
+  end
+
+  defp get_remote_user(gl_pid) when is_pid(gl_pid) do
+    {:dictionary, d} = Process.info(gl_pid, :dictionary)
+    Keyword.get(d, :remote_user, :unknown)
+  end
+end
