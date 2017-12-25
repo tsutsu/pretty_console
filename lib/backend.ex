@@ -3,7 +3,7 @@ defmodule PrettyConsole.Backend do
 
   @behaviour :gen_event
 
-  defstruct [formatter: nil, metadata: nil, level: nil, colors: nil, device: nil,
+  defstruct [formatter: nil, metadata: nil, level: nil, style: nil, device: nil,
              max_buffer: nil, buffer_size: 0, buffer: [], ref: nil, output: nil]
 
   def init(PrettyConsole.Backend) do
@@ -92,12 +92,12 @@ defmodule PrettyConsole.Backend do
     level = Keyword.get(config, :level, Application.get_env(:logger, :level))
     device = Keyword.get(config, :device, :user)
     formatter = Keyword.get(config, :formatter, PrettyConsole.Formatter)
-    colors = configure_colors(config)
+    style = configure_style(config)
     metadata = Keyword.get(config, :metadata, []) |> configure_metadata()
     max_buffer = Keyword.get(config, :max_buffer, 32)
 
     %{state | formatter: formatter, metadata: metadata,
-              level: level, colors: colors, device: device, max_buffer: max_buffer}
+              level: level, style: style, device: device, max_buffer: max_buffer}
   end
 
   defp configure_metadata(:all), do: :all
@@ -105,18 +105,39 @@ defmodule PrettyConsole.Backend do
 
   defp configure_merge(env, options) do
     Keyword.merge(env, options, fn
-      :colors, v1, v2 -> Keyword.merge(v1, v2)
+      :style, v1, v2 -> Keyword.merge(v1, v2)
       _, _v1, v2 -> v2
     end)
   end
 
-  defp configure_colors(config) do
-    colors = Keyword.get(config, :colors, [])
-    %{debug: Keyword.get(colors, :debug, :cyan),
-      info: Keyword.get(colors, :info, :normal),
-      warn: Keyword.get(colors, :warn, :yellow),
-      error: Keyword.get(colors, :error, :red),
-      enabled: Keyword.get(colors, :enabled, IO.ANSI.enabled?)}
+  @default_base_style %{
+    color: :normal,
+    show: :nothing,
+    shape: :compact
+  }
+
+  @default_indv_styles %{
+    info: %{},
+    debug: %{color: :cyan},
+    warn: %{color: :yellow},
+    error: %{color: :red}
+  }
+
+  defp configure_style(config) do
+    configured_styles = Keyword.get(config, :style, [])
+    base_style = merge_style_part(configured_styles[:all], %{}, @default_base_style)
+
+    Enum.map(@default_indv_styles, fn({level, indv_default}) ->
+      {level, merge_style_part(configured_styles[level], base_style, indv_default)}
+    end) |> Enum.into(%{})
+  end
+
+  defp merge_style_part(overrides, all_defaults, indv_defaults) do
+    indv_defaults = Enum.into(%{}, indv_defaults)
+    defaults = Map.merge(all_defaults, indv_defaults)
+
+    overrides = Enum.into(overrides || [], %{})
+    Map.merge(defaults, overrides)
   end
 
   defp log_event(level, msg, ts, md, %{device: device} = state) do
@@ -160,9 +181,9 @@ defmodule PrettyConsole.Backend do
   end
 
   defp format_event(level, msg, ts, md, state) do
-    %{formatter: formatter, metadata: keys, colors: colors} = state
-    color = color_for_event(level, colors, md)
-    formatter.format({level, color}, msg, ts, take_metadata(md, keys))
+    %{formatter: formatter, metadata: keys, style: style} = state
+    style = style_for_event(level, style, md)
+    formatter.format({level, style}, msg, ts, take_metadata(md, keys))
   end
 
   defp take_metadata(metadata, :all), do: metadata
@@ -175,10 +196,10 @@ defmodule PrettyConsole.Backend do
     end
   end
 
-  defp color_for_event(_level, %{enabled: false}, _md), do: nil
-
-  defp color_for_event(level, %{enabled: true} = colors, md) do
-    md[:ansi_color] || Map.fetch!(colors, level)
+  defp style_for_event(level, style, md) do
+    default_style = Map.fetch!(style, level)
+    event_style = Keyword.get(md, :style, %{})
+    Map.merge(default_style, event_style)
   end
 
   defp log_buffer(%{buffer_size: 0, buffer: []} = state), do: state
