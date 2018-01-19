@@ -8,7 +8,7 @@ defmodule PrettyConsole.Mixfile do
     version: @version,
     description: description(),
     package: package(),
-    elixir: "~> 1.5.0",
+    elixir: "~> 1.5",
     deps: deps()
   ] end
 
