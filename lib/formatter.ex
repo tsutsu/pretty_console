@@ -1,28 +1,120 @@
 defmodule PrettyConsole.Formatter do
-  def format({level, style}, msg, _ts, metadata) do
-    %{color: color, show: show} = style
-    {msg, metadata} = case msg do
-      [["application ", app_name, " "], new_msg] ->
-        {new_msg, Keyword.put(metadata, :application, String.to_atom(app_name))}
-      msg ->
-        {msg, metadata}
-    end
+  @hidden_translation_req_annotation "_tr\e[0D\e[0D\e[0D"
 
-    app_name = case {metadata[:application], metadata[:pid]} do
-      {app, _} when is_atom(app) -> app
-      {_, pid} when is_pid(pid)  -> :application.get_application(pid)
-      _                          -> nil
-    end
+  def format(level, msg, ts, metadata) do
+    format_from_logger!(level, msg, ts, metadata)
+  rescue e ->
+    s = System.stacktrace
+    exception_str = Exception.format(:throw, e, s)
 
-    app_desc = case app_name do
-      :kernel -> :system
-      :stdlib -> :system
-      nil -> case get_session(metadata[:pid]) do
-        {:error, :dead_process} -> :dead
-        {:error, :system_process} -> :system
-        {:ok, user_session} -> {:user, user_session}
-      end
-      v -> {:app, v}
+    ["\n", :red, "could not format: #{inspect {level, msg, metadata}}\n", exception_str, "\n"]
+    |> IO.ANSI.format()
+  end
+
+  def format_from_logger!(level, [@hidden_translation_req_annotation, _plaintext], ts, metadata) when is_list(metadata) do
+    {report, metadata} = Keyword.pop(metadata, :translation_req)
+
+    metadata = [level: level, timestamp: ts] ++ metadata
+
+    format!(report, metadata)
+  end
+
+  def format_from_logger!(level, msg, ts, metadata) when is_list(metadata) do
+    metadata = [level: level, timestamp: ts] ++ metadata
+    format!({:text, msg}, metadata)
+  end
+
+  def format_from_replay!([report: report, metadata: metadata]) do
+    format!(report, metadata)
+  end
+
+  def format!(report, metadata) do
+    metadata = Map.new(metadata)
+
+    style = %{
+      show: :all,
+      color: get_highlight_color(metadata[:level])
+    }
+
+    if print_report?(report, metadata) do
+      metadata = metadata
+      |> put_application()
+      |> put_session()
+      |> put_blame(style)
+
+      {report, blame_shape} = late_translate(report, metadata)
+
+      stylize(report, metadata, Map.put(style, :blame_shape, blame_shape))
+    else
+      []
+    end
+  end
+
+  defp print_report?({:text, _text}, _metadata), do: true
+
+  # TODO: filter out useless reports here
+  defp print_report?(:app_started, _metadata), do: true
+  defp print_report?({:child_started, _}, _metadata), do: false
+  defp print_report?({:child_exited, _, _}, _metadata), do: true
+  defp print_report?(_, _metadata), do: true
+
+  defp late_translate(:app_started, _), do:
+    {IO.ANSI.format([:green, "started", :reset]), :nothing}
+
+  defp late_translate({:child_exited, child, reason}, _), do:
+    {["#{inspect child} exited: #{reason}"], :compact}
+
+  defp late_translate({:text, text}, _metadata), do:
+    {text, :compact}
+
+  defp late_translate(term, metadata), do:
+    {inspect({term, metadata}, pretty: true, width: 80), :multiline}
+
+
+  defp get_highlight_color(:debug), do: :cyan
+  defp get_highlight_color(:info), do: :normal
+  defp get_highlight_color(:warn), do: :yellow
+  defp get_highlight_color(:error), do: :red
+
+  defp put_blame(metadata, %{show: show_style}) do
+    Map.put(metadata, :blame, get_blame(show_style, metadata))
+  end
+
+  defp put_application(metadata) do
+    case {metadata[:application], metadata[:pid]} do
+      {app, _} when is_atom(app) ->
+        metadata
+
+      {_, pid} when is_pid(pid)  ->
+        Map.put(metadata, :application, :application.get_application(pid))
+
+      _ ->
+        metadata
+    end
+  end
+
+  defp put_session(metadata) do
+    case Map.fetch(metadata, :pid) do
+      {:ok, pid} when is_pid(pid) ->
+        Map.put(metadata, :session, get_session(metadata[:pid]))
+
+      _ ->
+        metadata
+    end
+  end
+
+  def stylize(msg, metadata, style) do
+    %{color: color, blame_shape: blame_shape} = style
+
+    level = metadata[:level]
+
+    app_desc = case {metadata[:application], metadata[:session]} do
+      {:kernel, _} -> :system
+      {:stdlib, _} -> :system
+      {nil, {:ok, user_session}} -> {:user, user_session}
+      {nil, {:error, :system_process}} -> :system
+      {nil, {:error, :dead_process}} -> :dead
+      {v, _} when is_atom(v) -> {:app, v}
     end
 
     app_part = case app_desc do
@@ -37,7 +129,7 @@ defmodule PrettyConsole.Formatter do
         [:italic, :blue, "~", username, :reset, :blue, ":", to_string(session_counter), :reset, color, user_action_level_part(level), :reset]
     end
 
-    blame_parts = Enum.flat_map(get_blame(show, metadata), fn(blame) ->
+    blame_parts = Enum.flat_map(metadata[:blame], fn(blame) ->
       case blame do
         {:mfa, {m, f, a}} ->
           [[:blue, "from ", :bright, inspect(m), ".", to_string(f), "/", to_string(a), :reset]]
@@ -47,8 +139,10 @@ defmodule PrettyConsole.Formatter do
       end
     end)
 
-    blame_part = case {blame_parts, style[:shape]} do
+    blame_part = case {blame_parts, blame_shape} do
       {[], _} -> {:part, []}
+
+      {_, :nothing} -> {:part, []}
 
       {l, :compact} when is_list(l) -> {:part, [
         :blue, " (",
@@ -72,6 +166,7 @@ defmodule PrettyConsole.Formatter do
     end
 
     indented_rest_lns = Enum.map(log_rest_lns, fn(ln) -> ["  ", ln, "\n"] end)
+
     IO.ANSI.format_fragment([log_first_ln, "\n", indented_rest_lns])
   end
 
@@ -96,14 +191,46 @@ defmodule PrettyConsole.Formatter do
   end
 
   defp get_blame(:file_and_line, mod, metadata) do
-    source_file = mod.module_info[:compile][:source]
-    file_and_line = Exception.format_file_line(Path.relative_to_cwd(source_file), metadata[:line]) |> String.slice(0..-2)
-    [{:file_and_line, file_and_line}]
+    case fetch_file_for(mod, metadata) do
+      {:ok, source_file} ->
+        file_and_line = source_file
+        |> Path.relative_to_cwd()
+        |> Exception.format_file_line(metadata[:line])
+        |> String.slice(0..-2)
+
+        [{:file_and_line, file_and_line}]
+
+      :error ->
+        []
+    end
   end
 
-  defp get_blame(:mfa, mod, metadata) do
-    [fn_name, arity] = String.split(metadata[:function], "/")
+  defp get_blame(:mfa, mod, %{function: f}), do:
+    get_blame(:mfa, mod, f)
+
+  defp get_blame(:mfa, mod, fa) when is_binary(fa) do
+    [fn_name, arity] = String.split(fa, "/")
+    get_blame(:mfa, mod, {String.to_atom(fn_name), String.to_integer(arity)})
+  end
+
+  defp get_blame(:mfa, mod, {fn_name, arity}) when is_atom(fn_name) and is_integer(arity) do
     [{:mfa, {mod, fn_name, arity}}]
+  end
+
+  defp fetch_file_for(mod, metadata) do
+    case {metadata[:file], Code.ensure_loaded?(mod)} do
+      {file, _} when is_binary(file) ->
+        {:ok, file}
+
+      {_, true} ->
+        case mod.module_info[:compile][:source] do
+          f when is_binary(f) or is_list(f) -> {:ok, f}
+          _ -> :error
+        end
+
+      {_, false} ->
+        :error
+    end
   end
 
   defp get_session(pid) do

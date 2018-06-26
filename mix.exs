@@ -8,7 +8,7 @@ defmodule PrettyConsole.Mixfile do
     version: @version,
     description: description(),
     package: package(),
-    elixir: "~> 1.5",
+    elixir: "~> 1.6",
     deps: deps()
   ] end
 
@@ -32,6 +32,7 @@ defmodule PrettyConsole.Mixfile do
   ] end
 
   defp deps do [
+    {:etfs, "~> 0.1.3", only: :dev},
     {:ex_doc, ">= 0.0.0", only: :dev}
   ] end
 end

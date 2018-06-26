@@ -1,49 +1,104 @@
 defmodule PrettyConsole.Translator do
-  def translate(_min_level, :info, :report, {:progress, report}), do: translate_report(report)
-  def translate(_min_level, :error, :report, {:supervisor_report, _}), do: :skip
-  def translate(_min_level, _level, _kind, _message) do
-    :none
+  @hidden_translation_req_annotation "_tr\e[0D\e[0D\e[0D"
+
+  def translate(min_level, level, kind, report) do
+    new_metadata = [logger_min_level: min_level]
+
+    {new_report, new_metadata} = translate_report(kind, report, new_metadata)
+
+    new_metadata = [translation_req: new_report] ++ new_metadata
+
+    {:ok, plaintext} = Logger.Translator.translate(min_level, level, kind, report)
+
+    {:ok, [@hidden_translation_req_annotation, plaintext], new_metadata}
   end
 
-  defp translate_report([application: :logger, started_at: _node_name]), do: :skip
-  defp translate_report([application: app_name, started_at: _node_name]) do
-    {:ok, [["application ", to_string(app_name), " "], IO.ANSI.format([
-      :green, "started", :reset
-    ])]}
+  def translate_report(:report, {{progress_type, :progress}, progress_report}, metadata), do:
+    translate_progress_report(progress_type, progress_report, metadata)
+
+  def translate_report(:report, {{error_type, error}, error_report}, metadata), do:
+    translate_error_report(error_type, error, error_report, metadata)
+
+  def translate_report(kind, report, metadata) do
+    {{kind, report}, metadata}
   end
 
-  defp translate_report([supervisor: {_sup_pid, sup_name}, started: child_report]) do
-    case :application.get_application(child_report[:pid]) do
-      :undefined -> :none
-      {:ok, app_name} ->
-        sup_name = sup_name |> normalize_name
-        child_name = child_report[:name] |> normalize_name
-        child_type = child_report[:child_type]
-        child_mfa = child_report[:mfargs]
-        translate_child_start_report(app_name, sup_name, child_name, child_type, child_mfa)
+  defp translate_progress_report(:application_controller, [application: app_name, started_at: node_name], metadata) do
+    metadata = metadata ++ [node: node_name, application: app_name]
+    {:app_started, metadata}
+  end
+
+  defp translate_progress_report(:supervisor, [supervisor: supervisor_id, started: child], metadata) do
+    child_pid = Keyword.fetch!(child, :pid)
+    child_id = Keyword.get(child, :id, child_pid)
+    child_mfa = Keyword.get(child, :mfargs) || Keyword.fetch!(child, :mfa)
+    child_type = Keyword.get(child, :type, :worker)
+
+    supervisor_id = normalize_process_name(supervisor_id)
+    child_id = normalize_process_name(child_id)
+
+    {child_module, child_function_name, child_args} = child_mfa
+    child_function = {child_function_name, Enum.count(child_args)}
+
+    child_app = case :application.get_application(child_pid) do
+      :undefined -> nil
+      {:ok, app_name} -> app_name
     end
-  end
 
-  defp translate_child_start_report(:logger, _, _, _, _), do: :skip
-  defp translate_child_start_report(_, _, nil, _, _), do: :skip
-  defp translate_child_start_report(app_name, _sup_name, child_name, child_type, {child_module, _child_fn, _child_args}) do
-    child_name = to_string(child_name)
-    child_module = to_string(child_module)
-    child_type = to_string(child_type)
-
-    child_name_part = if child_name == child_module do
-      []
-    else
-      [" named ", :white, child_name, :reset]
+    child_desc = case {child_module, child_id} do
+      {m, m} -> []
+      {_m, nil} -> []
+      {_m, name} when is_atom(name) -> [name: name]
     end
 
-    {:ok, [["application", to_string(app_name)], IO.ANSI.format([
-      "started a ", :white, child_module, :reset, " ", child_type,
-      child_name_part
-    ])]}
+    child_desc = [child_module, type: child_type, parent: supervisor_id] ++ child_desc
+
+    metadata = Keyword.merge(metadata,
+      pid: child_pid,
+      application: child_app,
+      module: child_module,
+      function: child_function
+    )
+
+    {{:child_started, child_desc}, metadata}
   end
 
-  defp normalize_name({:local, proc_name}), do: proc_name
-  defp normalize_name(proc_name) when is_atom(proc_name), do: proc_name
-  defp normalize_name(_proc_name), do: nil
+  def translate_error_report(:supervisor, :child_terminated, [supervisor: supervisor_id, errorContext: :child_terminated, reason: reason, offender: child], metadata) do
+    child_pid = Keyword.fetch!(child, :pid)
+    child_id = Keyword.get(child, :id, child_pid)
+    child_mfa = Keyword.get(child, :mfargs) || Keyword.fetch!(child, :mfa)
+    child_type = Keyword.get(child, :type, :worker)
+
+    supervisor_id = normalize_process_name(supervisor_id)
+    child_id = normalize_process_name(child_id)
+
+    {child_module, child_function_name, child_args} = child_mfa
+    child_function = {child_function_name, Enum.count(child_args)}
+
+    child_app = case :application.get_application(child_pid) do
+      :undefined -> nil
+      {:ok, app_name} -> app_name
+    end
+
+    child_desc = case {child_module, child_id} do
+      {m, m} -> []
+      {_m, nil} -> []
+      {_m, name} when is_atom(name) -> [name: name]
+    end
+
+    child_desc = [child_module, type: child_type, parent: supervisor_id] ++ child_desc
+
+    metadata = Keyword.merge(metadata,
+      pid: child_pid,
+      application: child_app,
+      module: child_module,
+      function: child_function
+    )
+
+    {{:child_exited, child_desc, reason}, metadata}
+  end
+
+  defp normalize_process_name({:local, proc_name}), do: normalize_process_name(proc_name)
+  defp normalize_process_name(proc_name) when is_atom(proc_name), do: proc_name
+  defp normalize_process_name(_proc_name), do: nil
 end
