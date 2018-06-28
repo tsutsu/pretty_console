@@ -1,7 +1,7 @@
+if Mix.env in [:dev, :test] do
 defmodule PrettyConsole.DebugFileBackend do
   @moduledoc false
 
-  alias ETFs.DebugFile
   @debug_file_disk_log_name PrettyConsole.DebugFileBackend.DiskLog
 
   @behaviour :gen_event
@@ -106,4 +106,5 @@ defmodule PrettyConsole.DebugFileBackend do
   end
 
 
+end
 end

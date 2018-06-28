@@ -16,17 +16,19 @@ defmodule PrettyConsole do
     ])
   end
 
-  def replay!(opts \\ []) do
-    formatter = formatter_module(opts[:mode])
+  if Mix.env in [:dev, :test] do
+    def replay!(opts \\ []) do
+      formatter = formatter_module(opts[:mode])
 
-    PrettyConsole.DebugFileBackend.stream_file!(opts)
-    |> Enum.each(fn log ->
-      formatted = formatter.format_from_replay!(log)
-      IO.binwrite(formatted)
+      PrettyConsole.DebugFileBackend.stream_file!(opts)
+      |> Enum.each(fn log ->
+        formatted = formatter.format_from_replay!(log)
+        IO.binwrite(formatted)
+        :ok
+      end)
+
       :ok
-    end)
-
-    :ok
+    end
   end
 
   defp formatter_module(:debug), do: PrettyConsole.DebugFormatter
