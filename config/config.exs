@@ -11,8 +11,8 @@ config :logger,
   colors: [enabled: true],
   backends: [:console],
   # backends: [:console, PrettyConsole.DebugFileBackend],
-  translators: [{PrettyConsole.Translator, :translate}]
+  translators: [{PrettyConsole.HubTranslator, :losslessly_translate}]
 
 config :logger, :console,
   metadata: :all,
-  format: {PrettyConsole.Formatter, :format}
+  format: {PrettyConsole.DebugFormatter, :format}
