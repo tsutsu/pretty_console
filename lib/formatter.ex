@@ -56,6 +56,7 @@ defmodule PrettyConsole.Formatter do
   defp print_report?(:app_started, _metadata), do: true
   defp print_report?({:child_started, _}, _metadata), do: false
   defp print_report?({:child_exited, _, _}, _metadata), do: true
+  defp print_report?({:crashed, _, _}, _metadata), do: true
   defp print_report?(_, _metadata), do: true
 
   defp late_translate(:app_started, _), do:
@@ -63,6 +64,9 @@ defmodule PrettyConsole.Formatter do
 
   defp late_translate({:child_exited, child, reason}, _), do:
     {["#{inspect child} exited: #{reason}"], :compact}
+
+  defp late_translate({:crashed, process, error}, _), do:
+    {["#{inspect process} crashed: #{inspect error}"], :compact}
 
   defp late_translate({:text, text}, _metadata), do:
     {text, :compact}
