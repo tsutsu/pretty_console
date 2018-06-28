@@ -32,7 +32,7 @@ defmodule PrettyConsole.Mixfile do
   ] end
 
   defp deps do [
-    {:etfs, "~> 0.1.3", only: :dev},
+    {:etfs, "~> 0.1.3", only: [:dev, :test]},
     {:ex_doc, ">= 0.0.0", only: :dev}
   ] end
 end
