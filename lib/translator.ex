@@ -38,7 +38,10 @@ defmodule PrettyConsole.Translator do
     child_id = normalize_process_name(child_id)
 
     {child_module, child_function_name, child_args} = child_mfa
-    child_function = {child_function_name, Enum.count(child_args)}
+    child_function = case child_args do
+      :undefined -> {child_function_name, nil}
+      args       -> {child_function_name, Enum.count(args)}
+    end
 
     child_app = case :application.get_application(child_pid) do
       :undefined -> nil
@@ -73,7 +76,10 @@ defmodule PrettyConsole.Translator do
     child_id = normalize_process_name(child_id)
 
     {child_module, child_function_name, child_args} = child_mfa
-    child_function = {child_function_name, Enum.count(child_args)}
+    child_function = case child_args do
+      :undefined -> {child_function_name, nil}
+      args       -> {child_function_name, Enum.count(args)}
+    end
 
     child_app = case :application.get_application(child_pid) do
       :undefined -> nil

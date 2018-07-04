@@ -135,6 +135,8 @@ defmodule PrettyConsole.Formatter do
 
     blame_parts = Enum.flat_map(metadata[:blame], fn(blame) ->
       case blame do
+        {:mfa, {m, f, nil}} ->
+          [[:blue, "from ", :bright, inspect(m), ".", to_string(f), :reset]]
         {:mfa, {m, f, a}} ->
           [[:blue, "from ", :bright, inspect(m), ".", to_string(f), "/", to_string(a), :reset]]
         {:file_and_line, f_l} ->
@@ -217,7 +219,7 @@ defmodule PrettyConsole.Formatter do
     get_blame(:mfa, mod, {String.to_atom(fn_name), String.to_integer(arity)})
   end
 
-  defp get_blame(:mfa, mod, {fn_name, arity}) when is_atom(fn_name) and is_integer(arity) do
+  defp get_blame(:mfa, mod, {fn_name, arity}) when is_atom(fn_name) do
     [{:mfa, {mod, fn_name, arity}}]
   end
 
